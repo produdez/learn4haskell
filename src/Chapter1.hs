@@ -671,8 +671,9 @@ aren't ready for this boss yet!
 
 firstDigit :: Integral a => a -> a
 firstDigit n
-  | (n `div` 10) == 0 = n `mod` 10
-  | otherwise = firstDigit (n `div` 10) 
+  | (value `div` 10) == 0 = value `mod` 10
+  | otherwise = firstDigit (value `div` 10) 
+  where value = abs n
 
 
 {-
