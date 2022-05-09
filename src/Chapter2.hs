@@ -347,6 +347,9 @@ from it!
 
 ghci> :l src/Chapter2.hs
 -}
+
+-- NOTE: correct but the solution uses some pre-made functions also 
+-- like take and drop
 subList :: Int -> Int -> [a] -> [a]
 subList _ _ [] = []
 subList start end (x : xs)
@@ -642,6 +645,17 @@ Write a function that takes elements of a list only in even positions.
 
 >>> takeEven [2, 1, 3, 5, 4]
 [2,3,4]
+-}
+
+-- NOTE: bad solution. Better solution is
+-- 1. If empty -> None
+-- 2. If list only have one element ->  meaning that element is even idx (cause we always -2 from the list) -> take that element
+-- 3. If have >= 2 element -> take the first and ignore second
+-- Implement:
+{-
+  takeEven [] = []
+  takeEven [x] = [x]
+  takeEven (x : _ : xs) = x : takeEven xs
 -}
 takeEven :: [a] -> [a]
 takeEven = takeEvenIndex 0
