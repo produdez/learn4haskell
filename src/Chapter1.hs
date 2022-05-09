@@ -431,6 +431,7 @@ task is to specify the type of this function.
 49
 -}
 
+-- NOTE: wrong, requirement is Int
 squareSum :: Num a => a -> a -> a
 squareSum x y = (x + y) * (x + y)
 
@@ -643,6 +644,8 @@ Try to introduce variables in this task (either with let-in or where) to avoid
 specifying complex expressions.
 -}
 
+
+-- NOTE: better solution would be to get the last 2 values first by doing a abs(n) `mod` 100 and get result afterwards
 sumLast2 :: Integral a => a -> a
 sumLast2 n = a + b
   where
@@ -669,6 +672,9 @@ You need to use recursion in this task. Feel free to return to it later, if you
 aren't ready for this boss yet!
 -}
 
+-- NOTE: the solution uses a go function that keep tracks of the current value and the previous last digit
+-- when current value is 0 (run out of characters) -> return last digit
+-- cause when we run out (only last digit left), n div 10 = 0 and n mod 10 = firstDigit
 firstDigit :: Integral a => a -> a
 firstDigit n
   | (value `div` 10) == 0 = value `mod` 10
