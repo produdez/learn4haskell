@@ -397,6 +397,7 @@ data MonsterT2 = MonsterT2 {
   monsterT2Gold :: Int
 }
 
+-- NOTE: stupid, why tf compare a-b <=0 when you can do a <= b :D???
 fightT2 :: KnightT2 -> MonsterT2 -> Int
 fightT2 knightT2 monsterT2
   | monsterT2Health monsterT2 - knightT2Attack knightT2 <= 0 =
@@ -523,6 +524,20 @@ After defining the city, implement the following functions:
 -}
 
 -- Type Decls
+
+-- NOTE: type implementation is complicated compared to solution
+{- Sol is quite simple
+data Castle
+    = None
+    | OnlyCastle String
+    | CastleWithWalls String
+
+data MainBuilding
+    = Church
+    | Library
+
+data House = One | Two | Three | Four
+-}
 newtype Castle = Castle {
     name :: String
   } deriving Show
@@ -554,6 +569,7 @@ buildCastle :: City -> String -> City
 buildCastle (CastleCity _ w s h) castleName = CastleCity (Castle castleName) w s h
 buildCastle (NonCastleCity s h) castleName = CastleCity (Castle castleName) Nothing s h
 
+-- NOTE: missing check population of >= 10 !!!
 buildWalls :: City -> City
 buildWalls (CastleCity c _ s h) = CastleCity c (Just Wall) s h
 buildWalls noCastleCity = noCastleCity
@@ -929,8 +945,6 @@ Lair {lairTreasure = Just (Chest {chestGold = 10000, chestTreasure = "Diamond"})
 
 -}
 
-
--- TODO: CONTINUE
 {-
 =🛡= Typeclasses
 
@@ -1212,6 +1226,7 @@ nextDay day
   | day == (maxBound::DayOfWeek) = minBound::DayOfWeek
   | otherwise = succ day
 
+-- NOTE: better solution is to use fromEnum instead -> result will be (fromEnum Fri - fromEnum day) `mod` 7
 daysToParty :: DayOfWeek -> Int
 daysToParty Friday = 0
 daysToParty day = 1 + daysToParty (nextDay day)
@@ -1251,6 +1266,9 @@ Implement data types and typeclasses, describing such a battle between two
 contestants, and write a function that decides the outcome of a fight!
 -}
 
+-- NOTE: I implemented all of this just to know that there is no example solution
+-- God d***it 
+
 -- DataTypes
 data Knight = Knight {
   knightAttack :: Attack,
@@ -1278,10 +1296,6 @@ class Fighter a where
   fighterDamage :: a -> Attack
   setRemainingHealth ::a -> Health -> a
   alive :: a -> Bool
-
-  -- fighterHitPointsInt :: a -> Int
-  -- fighterHitPointsInt fighter = health
-  --   where (Health health) = fighterHitPoints fighter
 
   takeDamage :: a -> Attack -> a
   takeDamage fighter (Attack damage) =
