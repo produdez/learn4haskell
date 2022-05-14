@@ -114,23 +114,23 @@ As always, try to guess the output first! And don't forget to insert
 the output in here:
 
 >>> :k Char
-
+Char :: *
 >>> :k Bool
-
+Bool :: *
 >>> :k [Int]
-
+[Int] :: *
 >>> :k []
-
+[] :: * -> *
 >>> :k (->)
-
+(->) :: * -> * -> *
 >>> :k Either
-
+Either :: * -> * -> *
 >>> data Trinity a b c = MkTrinity a b c
 >>> :k Trinity
-
+Trinity :: * -> * -> * -> *
 >>> data IntBox f = MkIntBox (f Int)
 >>> :k IntBox
-
+IntBox :: (* -> *) -> *
 -}
 
 {- |
@@ -266,6 +266,23 @@ instance Functor Maybe where
     fmap f (Just a) = Just (f a)
     fmap _ x = x
 @
+
+> Answer: So i tested with some code and:
+  
+  Turns out, it doesn't work due to the fact that 
+  x is typed `Maybe a` but we want a return value of type `Maybe b`
+  which does not match. 
+  To be specific, x is `Nothing::Maybe a` 
+  while the return value must be `Nothing::Maybe b`
+  
+  A solution would be changing:
+  - fmap _ x = x
+  Into:
+  - fmap _ x = Nothing
+  Or better:
+  - fmap _ Nothing = Nothing
+  - fmap _ _ = Nothing
+  Or just revert to the original order
 -}
 
 {- |
@@ -292,8 +309,9 @@ we can reuse already known concepts (e.g. partial application) from
 values and apply them to the type level?
 -}
 instance Functor (Secret e) where
-    fmap :: (a -> b) -> Secret e a -> Secret e b
-    fmap = error "fmap for Box: not implemented!"
+    fmap :: (a -> b) ->  Secret e a -> Secret e b
+    fmap _ (Trap trap) =  Trap trap
+    fmap function (Reward reward) = Reward (function reward)
 
 {- |
 =⚔️= Task 3
@@ -306,6 +324,12 @@ typeclasses for standard data types.
 data List a
     = Empty
     | Cons a (List a)
+    deriving Show
+
+instance Functor List where
+  fmap :: (a -> b) -> List a -> List b
+  fmap _ Empty = Empty
+  fmap function (Cons x  xs) = Cons (function x) (fmap function xs)
 
 {- |
 =🛡= Applicative
@@ -472,10 +496,22 @@ Implement the Applicative instance for our 'Secret' data type from before.
 -}
 instance Applicative (Secret e) where
     pure :: a -> Secret e a
-    pure = error "pure Secret: Not implemented!"
+    pure = Reward
 
     (<*>) :: Secret e (a -> b) -> Secret e a -> Secret e b
-    (<*>) = error "(<*>) Secret: Not implemented!"
+    (<*>) (Trap trap) _ = Trap trap
+    (<*>) _ (Trap trap) = Trap trap
+    (<*>) (Reward func) (Reward val) = Reward (func val)
+
+{-
+  Note
+  Not wrong but can be much better if use fmap.
+  fmap maps from f a -> f b
+  so f <*> wrapper
+  can be
+  Trap f _ = Trap f
+  (Reward f) wrapper = fmap f wrapper
+-}
 
 {- |
 =⚔️= Task 5
@@ -488,8 +524,54 @@ Implement the 'Applicative' instance for our 'List' type.
   may also need to implement a few useful helper functions for our List
   type.
 -}
+instance Applicative List where
+  pure :: a -> List a
+  pure val = Cons val Empty
 
 
+
+  (<*>) :: List (a -> b) -> List a -> List b
+  (<*>) fs lst = listFlatten (applyFunctions fs lst)
+    where
+      applyFunctions :: List(a -> b) -> List a -> List(List b)
+      applyFunctions Empty _ = Empty
+      applyFunctions _ Empty = Empty
+      applyFunctions (Cons fx fxs) list = Cons (listMap fx list) (applyFunctions fxs list)
+
+-- Helpers
+
+listMap :: (a->b) -> List a -> List b
+listMap _ Empty = Empty
+listMap func (Cons x xs) = Cons (func x) (listMap func xs)
+
+listFlatten :: List (List a) -> List a
+listFlatten lists = reduceConcatenate lists Empty
+  where
+    -- This is just a left fold that uses concatenate
+    reduceConcatenate :: List(List a) -> List a -> List a
+    reduceConcatenate Empty acc = acc
+    reduceConcatenate (Cons lx lxs) acc =  reduceConcatenate lxs (concatenate acc lx)
+
+concatenate :: List a -> List a -> List a
+concatenate Empty list = list
+concatenate list Empty = list
+concatenate (Cons x1 xs1) lst2 = Cons x1 (concatenate xs1 lst2)
+
+{-
+  NOTE:
+  a better and shorter solution is to just implement
+  a function that append a list to a list instead of implementing map + flatten + concatenate
+
+  appendList :: List a -> List a -> List a
+  appendList Empty listb = listb
+  appendList (Cons x xs) listb = Cons x (appendList xs listb)
+
+  and then
+  (<*>) :: List (a -> b) -> List a -> List b
+  (<*>) Empty list = Empty
+  (<*>) list Empty = Empty
+  (<*>) (Cons f fs) list = appendList (fmap f list) (fs <*> list)
+-}
 {- |
 =🛡= Monad
 
@@ -600,7 +682,8 @@ Implement the 'Monad' instance for our 'Secret' type.
 -}
 instance Monad (Secret e) where
     (>>=) :: Secret e a -> (a -> Secret e b) -> Secret e b
-    (>>=) = error "bind Secret: Not implemented!"
+    (>>=) (Trap trap) _ = Trap trap
+    (>>=) (Reward reward) func = func reward
 
 {- |
 =⚔️= Task 7
@@ -610,6 +693,14 @@ Implement the 'Monad' instance for our lists.
 🕯 HINT: You probably will need to implement a helper function (or
   maybe a few) to flatten lists of lists to a single list.
 -}
+
+instance Monad List where
+  (>>=) :: List a -> (a -> List b) -> List b
+  (>>=) lst func = listFlatten (applyFunction func lst)
+    where
+      applyFunction :: (a -> List b) -> List a -> List(List b)
+      applyFunction _ Empty = Empty
+      applyFunction function (Cons x xs) = Cons (function x) (applyFunction function xs)
 
 
 {- |
@@ -628,8 +719,10 @@ Can you implement a monad version of AND, polymorphic over any monad?
 
 🕯 HINT: Use "(>>=)", "pure" and anonymous function
 -}
+
+-- NOTE: confession -> I looked up the solution :(
 andM :: (Monad m) => m Bool -> m Bool -> m Bool
-andM = error "andM: Not implemented!"
+andM b1 b2 = b1 >>= \x -> if x then b2 else pure False
 
 {- |
 =🐉= Task 9*: Final Dungeon Boss
@@ -672,7 +765,40 @@ Specifically,
    subtree of a tree
  ❃ Implement the function to convert Tree to list
 -}
+data BinaryTree a =
+  None |
+  Branch  a (BinaryTree a) (BinaryTree a)
+  deriving Show;
 
+instance Functor BinaryTree where
+  fmap :: (a -> b) -> BinaryTree a -> BinaryTree b
+  fmap _ None = None
+  fmap func (Branch val l r) =
+    Branch (func val) (fmap func l) (fmap func r)
+
+reverseBinaryTree :: BinaryTree a -> BinaryTree a
+reverseBinaryTree None = None
+-- reverseBinaryTree (Branch val l r) = Branch val r l
+reverseBinaryTree (Branch val l r) = Branch val (reverseBinaryTree r) (reverseBinaryTree l)
+
+{-
+  NOTE:
+  reverse is wrong
+  should be Branch val (reverse r) (reverse l)
+-}
+
+toList :: BinaryTree a -> [a] -- This is prefix
+toList None = []
+toList (Branch val l r) = val : (toList l ++ toList r)
+
+{- Tests
+>>> tree = Branch 1 (Branch 2 (Branch 4 None None) (Branch 5 None None)) (Branch 3 (Branch 6 None None) (Branch 7 None None))
+>>> reverseBinaryTree tree
+Branch 1 (Branch 3 (Branch 6 None None) (Branch 7 None None)) (Branch 2 (Branch 4 None None) (Branch 5 None None))
+>>> toList tree
+[1,2,4,5,3,6,7]
+
+-}
 
 {-
 You did it! Now it is time to open pull request with your changes
