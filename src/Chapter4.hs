@@ -503,6 +503,15 @@ instance Applicative (Secret e) where
     (<*>) _ (Trap trap) = Trap trap
     (<*>) (Reward func) (Reward val) = Reward (func val)
 
+{-
+  Note
+  Not wrong but can be much better if use fmap.
+  fmap maps from f a -> f b
+  so f <*> wrapper
+  can be
+  Trap f _ = Trap f
+  (Reward f) wrapper = fmap f wrapper
+-}
 
 {- |
 =⚔️= Task 5
@@ -548,6 +557,21 @@ concatenate Empty list = list
 concatenate list Empty = list
 concatenate (Cons x1 xs1) lst2 = Cons x1 (concatenate xs1 lst2)
 
+{-
+  NOTE:
+  a better and shorter solution is to just implement
+  a function that append a list to a list instead of implementing map + flatten + concatenate
+
+  appendList :: List a -> List a -> List a
+  appendList Empty listb = listb
+  appendList (Cons x xs) listb = Cons x (appendList xs listb)
+
+  and then
+  (<*>) :: List (a -> b) -> List a -> List b
+  (<*>) Empty list = Empty
+  (<*>) list Empty = Empty
+  (<*>) (Cons f fs) list = appendList (fmap f list) (fs <*> list)
+-}
 {- |
 =🛡= Monad
 
@@ -754,7 +778,14 @@ instance Functor BinaryTree where
 
 reverseBinaryTree :: BinaryTree a -> BinaryTree a
 reverseBinaryTree None = None
-reverseBinaryTree (Branch val l r) = Branch val r l
+-- reverseBinaryTree (Branch val l r) = Branch val r l
+reverseBinaryTree (Branch val l r) = Branch val (reverseBinaryTree r) (reverseBinaryTree l)
+
+{-
+  NOTE:
+  reverse is wrong
+  should be Branch val (reverse r) (reverse l)
+-}
 
 toList :: BinaryTree a -> [a] -- This is prefix
 toList None = []
